@@ -247,8 +247,11 @@
                     <span class="text-sm opacity-75 ml-2">Score: ${team.score}</span>
                 `;
                 teamBtn.onclick = () => {
+                    // Update the team's score
+                    teams[index].score++;
                     currentTeamIndex = index;
                     hideTeamSelection();
+                    updateScores();
                     updateCurrentTeamDisplay();
                     
                     // Move to next question or show results
@@ -516,13 +519,15 @@
             finalScoresContainer.innerHTML = '';
             sortedTeams.forEach((team, index) => {
                 const teamScore = document.createElement('div');
-                teamScore.className = `text-2xl font-semibold ${index === 0 ? 'text-indigo-600' : 'text-gray-700'}`;
+                teamScore.className = `text-2xl font-semibold ${index === 0 && team.score > 0 ? 'text-indigo-600' : 'text-gray-700'}`;
                 teamScore.textContent = `${team.name}: ${team.score}/${questions.length}`;
                 finalScoresContainer.appendChild(teamScore);
             });
             
             // Check for a winner or tie
-            if (sortedTeams.length > 1 && sortedTeams[0].score === sortedTeams[1].score) {
+            if (sortedTeams.length === 0 || (sortedTeams.length > 0 && sortedTeams[0].score === 0)) {
+                winnerMessageEl.textContent = "No winners this time. Try again!";
+            } else if (sortedTeams.length > 1 && sortedTeams[0].score === sortedTeams[1].score && sortedTeams[0].score > 0) {
                 const winners = sortedTeams.filter(t => t.score === sortedTeams[0].score);
                 const winnerNames = winners.map(t => t.name).join(' and ');
                 winnerMessageEl.textContent = `It's a tie between ${winnerNames}!`;
