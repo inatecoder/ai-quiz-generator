@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Quiz Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background-color: rgb(179, 230, 238);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+        .btn-secondary {
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db;
+        }
+        .option-btn {
+            width: 100%;
+            text-align: left;
+            background-color: #f9fafb;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+            justify-content: flex-start;
+        }
+        .option-btn:hover {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        .option-btn.correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+            color: #166534;
+        }
+        .option-btn.incorrect {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+        .hidden {
+            display: none;
+        }
+        .loader {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 5px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex items-center justify-center min-h-screen p-4">
+    <div id="app-container" class="w-full max-w-2xl mx-auto">
+        <!-- Start Screen -->
+        <div id="start-screen" class="card text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">AI Quiz Generator</h1>
+            <p class="text-gray-600 mb-6">Paste a large text from a textbook or article below to create a unique quiz.</p>
+            <textarea id="text-input" class="w-full h-64 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste your text here..."></textarea>
+            <div class="mt-4 text-left">
+                <label for="team-count" class="block text-sm font-medium text-gray-700 mb-1">Number of Teams</label>
+                <select id="team-count" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="2">2 Teams</option>
+                    <option value="3">3 Teams</option>
+                    <option value="4">4 Teams</option>
+                </select>
+            </div>
+            <div id="team-names" class="mt-4 space-y-2">
+                <!-- Team name inputs will be added here -->
+            </div>
+            <button id="generate-btn" class="btn btn-primary w-full mt-4 text-lg">
+                Generate Quiz
+            </button>
+            <div id="error-message" class="text-red-500 mt-4 hidden"></div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="card text-center hidden">
+            <div class="loader mx-auto"></div>
+            <p class="text-gray-600 mt-4 text-lg font-medium">Generating your quiz...</p>
+            <p class="text-gray-500 mt-2">This may take a moment.</p>
+        </div>
+
+        <!-- Team Selection Popup -->
+        <div id="team-popup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Which team answered correctly?</h2>
+                <div id="teams-container" class="grid grid-cols-1 gap-3">
+                    <!-- Team buttons will be added here -->
+                </div>
+                <button onclick="hideTeamSelection()" class="mt-4 w-full py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="card hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <p class="text-sm font-medium text-gray-500">Question <span id="question-number"></span> of <span id="total-questions"></span></p>
+                    <p class="text-sm font-medium text-indigo-600">Current Team: <span id="current-team"></span></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-semibold text-gray-700">Scores:</p>
+                    <div id="scores-container" class="flex space-x-2">
+                        <!-- Team scores will be added here -->
+                    </div>
+                </div>
+            </div>
+            <h2 id="question-text" class="text-2xl font-semibold text-gray-900 mb-6"></h2>
+            <div id="options-container" class="space-y-3">
+                <!-- Options will be injected here -->
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="card text-center hidden">
+            <h2 class="text-3xl font-bold text-gray-900">Quiz Complete!</h2>
+            <p class="text-lg text-gray-600 mt-2">Final Scores:</p>
+            <div id="final-scores" class="my-6 space-y-4">
+                <!-- Final team scores will be added here -->
+            </div>
+            <h3 id="winner-message" class="text-2xl font-bold text-green-600 mb-6"></h3>
+            <p id="creator-name" class="text-gray-500 mt-4">Quiz generator made by <span class="font-semibold text-gray-700">Lohith</span></p>
+            <button id="try-again-btn" class="btn btn-primary w-full mt-6">
+                Create Another Quiz
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const teamPopup = document.getElementById('team-popup');
+        const loadingScreen = document.getElementById('loading-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultsScreen = document.getElementById('results-screen');
+
+        const textInput = document.getElementById('text-input');
+        const teamCountSelect = document.getElementById('team-count');
+        const teamNamesContainer = document.getElementById('team-names');
+        const teamsContainer = document.getElementById('teams-container');
+        const generateBtn = document.getElementById('generate-btn');
+        const errorMessage = document.getElementById('error-message');
+
+        const questionNumberEl = document.getElementById('question-number');
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const currentTeamEl = document.getElementById('current-team');
+        const scoresContainer = document.getElementById('scores-container');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const finalScoresContainer = document.getElementById('final-scores');
+        const winnerMessageEl = document.getElementById('winner-message');
+        const tryAgainBtn = document.getElementById('try-again-btn');
+
+        // --- App State ---
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let teams = [];
+        let currentTeamIndex = 0;
+
+        // --- Event Listeners ---
+        teamCountSelect.addEventListener('change', updateTeamInputs);
+        generateBtn.addEventListener('click', handleGenerateQuiz);
+        tryAgainBtn.addEventListener('click', resetApp);
+
+        // Initialize team inputs
+        updateTeamInputs();
+
+        // --- Team Management ---
+        function updateTeamInputs() {
+            const teamCount = parseInt(teamCountSelect.value);
+            teamNamesContainer.innerHTML = '';
+            
+            for (let i = 0; i < teamCount; i++) {
+                const teamDiv = document.createElement('div');
+                teamDiv.className = 'mb-2';
+                teamDiv.innerHTML = `
+                    <label for="team-${i+1}" class="block text-sm font-medium text-gray-700 mb-1">Team ${i+1} Name</label>
+                    <input type="text" id="team-${i+1}" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" 
+                           placeholder="Team ${i+1}" value="Team ${i+1}">
+                `;
+                teamNamesContainer.appendChild(teamDiv);
+            }
+        }
+
+        function setupTeams() {
+            teams = [];
+            const teamCount = parseInt(teamCountSelect.value);
+            
+            for (let i = 0; i < teamCount; i++) {
+                const teamName = document.getElementById(`team-${i+1}`).value.trim() || `Team ${i+1}`;
+                teams.push({
+                    name: teamName,
+                    score: 0
+                });
+            }
+            
+            // Update team selection popup
+            updateTeamsContainer();
+            
+            // Set first team as default
+            currentTeamIndex = 0;
+            updateCurrentTeamDisplay();
+        }
+        
+        function updateTeamsContainer() {
+            teamsContainer.innerHTML = '';
+            teams.forEach((team, index) => {
+                const teamBtn = document.createElement('button');
+                teamBtn.className = 'btn btn-secondary p-3 text-left w-full';
+                teamBtn.innerHTML = `
+                    <span class="font-semibold">${team.name}</span>
+                    <span class="text-sm opacity-75 ml-2">Score: ${team.score}</span>
+                `;
+                teamBtn.onclick = () => {
+                    currentTeamIndex = index;
+                    hideTeamSelection();
+                    updateCurrentTeamDisplay();
+                    
+                    // Move to next question or show results
+                    if (currentQuestionIndex < questions.length - 1) {
+                        currentQuestionIndex++;
+                        displayQuestion();
+                    } else {
+                        showResults();
+                    }
+                };
+                teamsContainer.appendChild(teamBtn);
+            });
+        }
+        
+        function updateCurrentTeamDisplay() {
+            const currentTeam = teams[currentTeamIndex];
+            currentTeamEl.textContent = currentTeam.name;
+            updateScores();
+        }
+
+        function updateScores() {
+            scoresContainer.innerHTML = '';
+            teams.forEach((team, index) => {
+                const scoreBadge = document.createElement('div');
+                scoreBadge.className = `px-3 py-1 rounded-full text-sm font-medium ${
+                    index === currentTeamIndex ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                }`;
+                scoreBadge.textContent = `${team.name}: ${team.score}`;
+                scoresContainer.appendChild(scoreBadge);
+            });
+            
+            // Also update the team popup scores
+            updateTeamsContainer();
+        }
+        
+        function showTeamSelection() {
+            teamPopup.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling when popup is open
+        }
+        
+        function hideTeamSelection() {
+            teamPopup.classList.add('hidden');
+            document.body.style.overflow = ''; // Re-enable scrolling
+        }
+
+        function startTeamTurn(teamIndex) {
+            currentTeamIndex = teamIndex;
+            currentTeamEl.textContent = teams[teamIndex].name;
+            showScreen('quiz');
+            displayQuestion();
+        }
+
+        // --- Functions ---
+
+        /**
+         * Handles the quiz generation process when the button is clicked.
+         */
+        async function handleGenerateQuiz() {
+            const text = textInput.value.trim();
+            if (text.length < 200) {
+                showError('Please paste a larger amount of text (at least 200 characters) to generate a meaningful quiz.');
+                return;
+            }
+            
+            // Validate team names
+            const teamCount = parseInt(teamCountSelect.value);
+            const teamNames = [];
+            for (let i = 0; i < teamCount; i++) {
+                const teamName = document.getElementById(`team-${i+1}`).value.trim() || `Team ${i+1}`;
+                if (teamNames.includes(teamName)) {
+                    showError('Team names must be unique.');
+                    return;
+                }
+                teamNames.push(teamName);
+            }
+            
+            hideError();
+            showScreen('loading');
+
+            try {
+                const generatedQuestions = await fetchQuestionsFromAPI(text);
+                if (generatedQuestions && generatedQuestions.length > 0) {
+                    questions = generatedQuestions;
+                    setupTeams();
+                    updateScores();
+                    showScreen('quiz');
+                    displayQuestion();
+                } else {
+                    showError('Could not generate a quiz from the provided text. Please try with a different text.');
+                    showScreen('start');
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                showError('An unexpected error occurred. Please try again later.');
+                showScreen('start');
+            }
+        }
+
+        /**
+         * Fetches quiz questions from the Gemini API.
+         * @param {string} contextText The text to generate questions from.
+         * @returns {Promise<Array|null>} A promise that resolves to an array of questions or null.
+         */
+        async function fetchQuestionsFromAPI(contextText) {
+            // This is a simplified prompt. More complex prompts can yield better results.
+            const prompt = `
+                Based on the following text, generate a JSON array of 5 unique multiple-choice quiz questions.
+                Each question object in the array must have the following structure:
+                - "question": A string containing the question.
+                - "options": An array of 4 strings, where one is the correct answer.
+                - "answer": A string that is the correct answer and must exactly match one of the items in the "options" array.
+
+                Ensure the questions are diverse and cover different aspects of the text.
+                Do not repeat questions. Provide only the JSON array as the output.
+
+                Text:
+                """
+                ${contextText}
+                """
+            `;
+
+            const schema = {
+                type: "ARRAY",
+                items: {
+                    type: "OBJECT",
+                    properties: {
+                        "question": { "type": "STRING" },
+                        "options": { "type": "ARRAY", "items": { "type": "STRING" } },
+                        "answer": { "type": "STRING" }
+                    },
+                    required: ["question", "options", "answer"]
+                }
+            };
+
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema,
+                    temperature: 0.7 // A bit of creativity
+                }
+            };
+
+            const apiKey = "AIzaSyCIx45eLwa7Gly9bAu5TvdAhfHP4rz_CGA";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                console.error("API request failed with status:", response.status);
+                const errorBody = await response.text();
+                console.error("Error body:", errorBody);
+                return null;
+            }
+
+            const result = await response.json();
+
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const jsonText = result.candidates[0].content.parts[0].text;
+                try {
+                    // The API should return valid JSON because of responseSchema, but we parse just in case.
+                    return JSON.parse(jsonText);
+                } catch (e) {
+                    console.error("Failed to parse JSON response:", jsonText);
+                    return null;
+                }
+            } else {
+                console.error("Unexpected API response structure:", result);
+                return null;
+            }
+        }
+
+        /**
+         * Initializes the quiz state and displays the first question.
+         */
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            showScreen('quiz');
+            displayQuestion();
+        }
+
+        /**
+         * Renders the current question and its options on the screen.
+         */
+        function displayQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                showResults();
+                return;
+            }
+
+            const currentQuestion = questions[currentQuestionIndex];
+            questionNumberEl.textContent = currentQuestionIndex + 1;
+            questionTextEl.textContent = currentQuestion.question;
+
+            optionsContainer.innerHTML = ''; // Clear previous options
+
+            // Shuffle options for variety
+            const shuffledOptions = [...currentQuestion.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('btn', 'option-btn');
+                button.addEventListener('click', () => selectAnswer(option, button));
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * Handles the logic when a user selects an answer.
+         * @param {string} selectedOption The text of the selected option.
+         * @param {HTMLElement} selectedButton The button element that was clicked.
+         */
+        function selectAnswer(selectedOption, selectedButton) {
+            const correctAnswer = questions[currentQuestionIndex].answer;
+            const allOptionButtons = optionsContainer.querySelectorAll('.option-btn');
+
+            // Disable all buttons after an answer is selected
+            allOptionButtons.forEach(btn => btn.disabled = true);
+
+            // Show if the answer was correct or not
+            if (selectedOption === correctAnswer) {
+                selectedButton.classList.add('correct');
+            } else {
+                selectedButton.classList.add('incorrect');
+                // Highlight the correct answer if the user was wrong
+                allOptionButtons.forEach(btn => {
+                    if (btn.textContent === correctAnswer) {
+                        btn.classList.add('correct');
+                    }
+                });
+            }
+
+            // Wait a moment before showing team selection
+            setTimeout(() => {
+                if (selectedOption === correctAnswer) {
+                    // If correct, show team selection popup
+                    showTeamSelection();
+                } else {
+                    // If incorrect, move to next question or show results
+                    if (currentQuestionIndex < questions.length - 1) {
+                        currentQuestionIndex++;
+                        displayQuestion();
+                    } else {
+                        showResults();
+                    }
+                }
+            }, 1000);
+        }
+
+        /**
+         * Displays the final results screen.
+         */
+        function showResults() {
+            // Sort teams by score (highest first)
+            const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
+            
+            // Update final scores display
+            finalScoresContainer.innerHTML = '';
+            sortedTeams.forEach((team, index) => {
+                const teamScore = document.createElement('div');
+                teamScore.className = `text-2xl font-semibold ${index === 0 ? 'text-indigo-600' : 'text-gray-700'}`;
+                teamScore.textContent = `${team.name}: ${team.score}/${questions.length}`;
+                finalScoresContainer.appendChild(teamScore);
+            });
+            
+            // Check for a winner or tie
+            if (sortedTeams.length > 1 && sortedTeams[0].score === sortedTeams[1].score) {
+                const winners = sortedTeams.filter(t => t.score === sortedTeams[0].score);
+                const winnerNames = winners.map(t => t.name).join(' and ');
+                winnerMessageEl.textContent = `It's a tie between ${winnerNames}!`;
+            } else {
+                winnerMessageEl.textContent = `🏆 ${sortedTeams[0].name} wins!`;
+            }
+            
+            showScreen('results');
+        }
+
+        /**
+         * Resets the application to its initial state.
+         */
+        function resetApp() {
+            questions = [];
+            teams = [];
+            currentQuestionIndex = 0;
+            currentTeamIndex = 0;
+            textInput.value = '';
+            showScreen('start');
+        }
+
+        /**
+         * Controls which screen is visible to the user.
+         * @param {'start' | 'loading' | 'quiz' | 'results'} screenName The name of the screen to show.
+         */
+        function showScreen(screenName) {
+            startScreen.classList.add('hidden');
+            loadingScreen.classList.add('hidden');
+            quizScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+
+            if (screenName === 'team') {
+                teamPopup.classList.remove('hidden');
+            } else {
+                teamPopup.classList.add('hidden');
+                document.getElementById(`${screenName}-screen`).classList.remove('hidden');
+            }
+            
+            // Update UI elements when showing quiz screen
+            if (screenName === 'quiz') {
+                totalQuestionsEl.textContent = questions.length;
+                updateScores();
+                updateCurrentTeamDisplay();
+            }
+        }
+
+        /**
+         * Displays an error message to the user.
+         * @param {string} message The error message to display.
+         */
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the error message.
+         */
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
