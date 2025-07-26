@@ -1,5 +1,5 @@
 # AI Quiz Generator
-
+https://inatecoder.github.io/ai-quiz-generator/
 A web application that generates quizzes from any text input using AI. Perfect for teachers, students, or anyone who wants to create fun quizzes quickly!
 
 ## Features
