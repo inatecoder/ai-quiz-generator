@@ -1,5 +1,5 @@
 # AI Quiz Generator
-https://inatecoder.github.io/ai-quiz-generator/
+https://inatecoder.github.io/ai-quiz-generator/ wquizgen.netlify.app
 sst:
 
 ***
